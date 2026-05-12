@@ -127,7 +127,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.error(f"❌ Exception: {context.error}", exc_info=True)
 
-# ─── Main (SYNCHRONOUS — no asyncio.run) ───
+# ─── Main (SYNCHRONOUS) ───
 def main() -> None:
     logger.info("🚀 Bot starting...")
     application = Application.builder().token(TOKEN).build()
@@ -141,7 +141,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_error_handler(error_handler)
 
-    # Blocks forever — this is correct for a Background Worker
+    # Blocks forever — correct for Background Worker
     logger.info("▶️ Starting polling...")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
