@@ -16,5 +16,5 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # Allowed users
-ALLOWED_USERS = {8470062519, 5591183463}
+ALLOWED_USERS = {8470062519}
 TOKEN = '8654320963:AAG7lyMjXUZxRyBfUpCU_u1uZnNzqjZTxww'
