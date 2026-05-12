@@ -1,6 +1,7 @@
 import os
-import sys
+import json
 import logging
+import sys
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import firebase_admin
@@ -14,8 +15,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ─── Firebase ───
-cred = credentials.Certificate("serviceAccount.json")
+# ─── Firebase (env variable ONLY) ───
+google_creds = os.environ["GOOGLE_CREDENTIALS"]
+cred_info = json.loads(google_creds)
+cred = credentials.Certificate(cred_info)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
@@ -141,7 +144,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_error_handler(error_handler)
 
-    # Blocks forever — correct for Background Worker
+    # Blocks forever
     logger.info("▶️ Starting polling...")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
