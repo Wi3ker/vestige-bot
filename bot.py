@@ -1,6 +1,7 @@
 import os, json, logging, pathlib, sys
+from datetime import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, JobQueue
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -38,13 +39,9 @@ def get_counts():
         counts[s] = counts.get(s,0) + 1
     return counts
 
-async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    logger.info(f"▶️ /start from user {update.effective_user.id}")
-    if not is_allowed(update.effective_user.id):
-        await update.message.reply_text("⛔ Access denied.")
-        return
+def build_dashboard_text():
     c = get_counts()
-    text = (
+    return (
         f"👋 *Vestige Order Dashboard*\n"
         f"━━━━━━━━━━━━━━━━\n"
         f"🆕 New: *{c['new']}*\n"
@@ -53,15 +50,52 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"❌ Cancelled: *{c['cancel']}*\n"
         f"━━━━━━━━━━━━━━━━\n"
         f"Select a category:"
-    )
-    keyboard = InlineKeyboardMarkup([
+    ), c
+
+def build_keyboard(c):
+    return InlineKeyboardMarkup([
         [InlineKeyboardButton(f"🆕 New ({c['new']})", callback_data="list_new"),
          InlineKeyboardButton(f"🚚 In Progress ({c['progress']})", callback_data="list_progress")],
         [InlineKeyboardButton(f"✅ Done ({c['done']})", callback_data="list_done"),
          InlineKeyboardButton(f"❌ Cancelled ({c['cancel']})", callback_data="list_cancel")],
         [InlineKeyboardButton("📋 All Orders", callback_data="list_all")],
     ])
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+# ── 12-HOUR REMINDER ──────────────────────────────────────────
+async def send_reminder(ctx: ContextTypes.DEFAULT_TYPE):
+    logger.info("⏰ Sending 12-hour reminder...")
+    c = get_counts()
+    text = (
+        f"⏰ *12-Hour Order Reminder*\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"🆕 New (untreated): *{c['new']}*\n"
+        f"🚚 In Progress: *{c['progress']}*\n"
+        f"✅ Done: *{c['done']}*\n"
+        f"❌ Cancelled: *{c['cancel']}*\n"
+        f"━━━━━━━━━━━━━━━━\n"
+    )
+    if c['new'] > 0:
+        text += f"⚠️ You have *{c['new']}* order(s) waiting!\n"
+    text += f"_Tap /start to manage orders_"
+
+    for uid in ALLOWED_USERS:
+        try:
+            await ctx.bot.send_message(
+                chat_id=uid,
+                text=text,
+                parse_mode="Markdown"
+            )
+            logger.info(f"✅ Reminder sent to {uid}")
+        except Exception as e:
+            logger.error(f"❌ Failed to send reminder to {uid}: {e}")
+
+async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"▶️ /start from user {update.effective_user.id}")
+    if not is_allowed(update.effective_user.id):
+        await update.message.reply_text("⛔ Access denied.")
+        return
+    text, c = build_dashboard_text()
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=build_keyboard(c))
 
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -133,9 +167,15 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 def main():
     logger.info("🚀 Starting Vestige Bot...")
     app = Application.builder().token(TOKEN).build()
+
+    # ── Schedule 12-hour reminders at 8AM and 8PM ──
+    job_queue = app.job_queue
+    job_queue.run_daily(send_reminder, time=time(hour=8,  minute=0))
+    job_queue.run_daily(send_reminder, time=time(hour=20, minute=0))
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_callback))
-    logger.info("✅ Vestige Bot running!")
+    logger.info("✅ Vestige Bot running! Reminders set for 8AM and 8PM")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
