@@ -22,7 +22,7 @@ db = firestore.client()
 print("✅ Firebase connected!")
 
 ALLOWED_USERS = {8470062519}
-TOKEN = '8654320963:AAG7lyMjXUZxRyBfUpCU_u1uZnNzqjZTxww'
+TOKEN = '8551082233:AAETRVaLJowjDH8exUHLiE0bYewefxKtH8g'
 
 def is_allowed(uid): return uid in ALLOWED_USERS
 
