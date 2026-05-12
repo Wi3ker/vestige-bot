@@ -8,19 +8,8 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# ─── Logging ───
-logging.basicConfig(
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-    level=logging.INFO,
-    stream=sys.stdout,
-)
-logger = logging.getLogger(__name__)
-
 # ─── Firebase ───
-b64_creds = os.environ["GOOGLE_CREDENTIALS_B64"]
-json_str = base64.b64decode(b64_creds).decode("utf-8")
-cred_info = json.loads(json_str)
-cred = credentials.Certificate(cred_info)
+cred = credentials.Certificate("serviceAccount.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
